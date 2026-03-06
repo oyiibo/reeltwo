@@ -16,7 +16,6 @@ secretAccessKey: process.env.B2_APP_KEY,
 });
 
 const BUCKET = process.env.B2_BUCKET;
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -24,11 +23,7 @@ cors: { origin: "*", methods: ["GET", "POST"] },
 maxHttpBufferSize: 1e8,
 });
 
-const upload = multer({
-storage: multer.memoryStorage(),
-limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB
-});
-
+const upload = multer({ storage: multer.memoryStorage() });
 const rooms = new Map();
 
 function createRoom() {
@@ -64,55 +59,26 @@ if (!room) return res.status(404).json({ error: "Room not found" });
 res.json({ roomId: room.id, hasVideo: !!room.videoUrl, videoName: room.videoName, videoUrl: room.videoUrl });
 });
 
-// Generate a presigned upload URL — client uploads directly to B2
 app.post("/api/rooms/:roomId/presign", async (req, res) => {
- const room = getRoom(req.params.roomId.toUpperCase());
- if (!room) return res.status(404).json({ error: "Room not found" });
-
- const { filename, contentType } = req.body;
- const key = `${room.id}/${uuidv4()}-${filename}`;
-
- try {
- const putCommand = new PutObjectCommand({
- Bucket: BUCKET,
- Key: key,
- ContentType: contentType || "video/mp4",
- });
- const uploadUrl = await getSignedUrl(s3, putCommand, { expiresIn: 3600 });
-
- const getCommand = new GetObjectCommand({
- Bucket: BUCKET,
- Key: key,
- });
- const videoUrl = await getSignedUrl(s3, getCommand, { expiresIn: 86400 });
-
- console.log("Presign upload URL:", uploadUrl);
- console.log("Presign video URL:", videoUrl);
-
- res.json({ uploadUrl, videoUrl, key });
- } catch (err) {
- console.error("Presign error:", err);
- res.status(500).json({ error: err.message });
- }
-});
-
-
-// Signed URL for playing (works with private bucket)
-const getCommand = new GetObjectCommand({
-Bucket: BUCKET,
-Key: key,
-});
-const videoUrl = await getSignedUrl(s3, getCommand, { expiresIn: 86400 }); // 24 hours
-
+const room = getRoom(req.params.roomId.toUpperCase());
+if (!room) return res.status(404).json({ error: "Room not found" });
+const { filename, contentType } = req.body;
+const key = `${room.id}/${uuidv4()}-${filename}`;
+try {
+const uploadUrl = await getSignedUrl(s3, new PutObjectCommand({
+Bucket: BUCKET, Key: key, ContentType: contentType || "video/mp4",
+}), { expiresIn: 3600 });
+const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
+Bucket: BUCKET, Key: key,
+}), { expiresIn: 86400 });
+console.log("Presign success, key:", key);
 res.json({ uploadUrl, videoUrl, key });
 } catch (err) {
-console.error("Presign error:", err);
-res.status(500).json({ error: "Could not generate upload URL" });
+console.error("Presign error:", err.message);
+res.status(500).json({ error: err.message });
 }
 });
 
-
-// Called after client finishes uploading to B2
 app.post("/api/rooms/:roomId/video-ready", (req, res) => {
 const room = getRoom(req.params.roomId.toUpperCase());
 if (!room) return res.status(404).json({ error: "Room not found" });
@@ -193,10 +159,18 @@ io.to(room.id).emit("reaction:burst", { emoji, sender: socket.data.name, id: uui
 socket.on("webrtc:offer", ({ targetId, offer }) => io.to(targetId).emit("webrtc:offer", { fromId: socket.id, fromName: socket.data.name, offer }));
 socket.on("webrtc:answer", ({ targetId, answer }) => io.to(targetId).emit("webrtc:answer", { fromId: socket.id, answer }));
 socket.on("webrtc:ice_candidate", ({ targetId, candidate }) => io.to(targetId).emit("webrtc:ice_candidate", { fromId: socket.id, candidate }));
-socket.on("webrtc:get_peers", () => {
+socket.on("call:request", () => {
 const room = getRoom(socket.data.roomId);
 if (!room) return;
-socket.emit("webrtc:peers", { peers: Object.entries(room.players).filter(([id]) => id !== socket.id).map(([id, p]) => ({ socketId: id, name: p.name })) });
+const others = Object.keys(room.players).filter(id => id !== socket.id);
+others.forEach(id => io.to(id).emit("call:request", { fromId: socket.id, fromName: socket.data.name }));
+});
+socket.on("call:accept", ({ targetId }) => io.to(targetId).emit("call:accepted", { fromId: socket.id }));
+socket.on("call:reject", ({ targetId }) => io.to(targetId).emit("call:rejected"));
+socket.on("call:end", () => {
+const room = getRoom(socket.data.roomId);
+if (!room) return;
+socket.to(room.id).emit("call:ended");
 });
 
 socket.on("disconnect", () => {
