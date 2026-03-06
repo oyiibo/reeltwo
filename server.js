@@ -3,13 +3,19 @@ const http = require("http");
 const { Server } = require("socket.io");
 const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
-const cloudinary = require("cloudinary").v2;
+const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
-cloudinary.config({
-cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-api_key: process.env.CLOUDINARY_API_KEY,
-api_secret: process.env.CLOUDINARY_API_SECRET,
+const s3 = new S3Client({
+endpoint: `https://${process.env.B2_ENDPOINT}`,
+region: "us-east-1",
+credentials: {
+accessKeyId: process.env.B2_KEY_ID,
+secretAccessKey: process.env.B2_APP_KEY,
+},
 });
+
+const BUCKET = process.env.B2_BUCKET;
 
 const app = express();
 const server = http.createServer(app);
@@ -18,7 +24,11 @@ cors: { origin: "*", methods: ["GET", "POST"] },
 maxHttpBufferSize: 1e8,
 });
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 500 * 1024 * 1024 } });
+const upload = multer({
+storage: multer.memoryStorage(),
+limits: { fileSize: 10 * 1024 * 1024 * 1024 }, // 10GB
+});
+
 const rooms = new Map();
 
 function createRoom() {
@@ -54,39 +64,39 @@ if (!room) return res.status(404).json({ error: "Room not found" });
 res.json({ roomId: room.id, hasVideo: !!room.videoUrl, videoName: room.videoName, videoUrl: room.videoUrl });
 });
 
-app.post("/api/rooms/:roomId/upload", upload.single("video"), async (req, res) => {
+// Generate a presigned upload URL — client uploads directly to B2
+app.post("/api/rooms/:roomId/presign", async (req, res) => {
 const room = getRoom(req.params.roomId.toUpperCase());
 if (!room) return res.status(404).json({ error: "Room not found" });
-if (!req.file) return res.status(400).json({ error: "No file" });
+
+const { filename, contentType } = req.body;
+const key = `${room.id}/${uuidv4()}-${filename}`;
 
 try {
-const result = await new Promise((resolve, reject) => {
-const stream = cloudinary.uploader.upload_stream(
-{
-resource_type: "video",
-folder: "reeltwo",
-timeout: 120000,
-},
-(error, result) => error ? reject(error) : resolve(result)
-);
-stream.end(req.file.buffer);
+const command = new PutObjectCommand({
+Bucket: BUCKET,
+Key: key,
+ContentType: contentType || "video/mp4",
+});
+const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
+const videoUrl = `https://${BUCKET}.${process.env.B2_ENDPOINT}/${key}`;
+res.json({ uploadUrl, videoUrl, key });
+} catch (err) {
+console.error("Presign error:", err);
+res.status(500).json({ error: "Could not generate upload URL" });
+}
 });
 
-// Convert to browser-compatible mp4 using Cloudinary URL transformation
-const baseUrl = result.secure_url.replace("/upload/", "/upload/vc_h264,ac_aac/");
-const mp4Url = baseUrl.replace(/\.[^/.]+$/, ".mp4");
-room.videoUrl = mp4Url;
-
-
-room.videoUrl = result.secure_url;
-room.videoName = req.file.originalname;
+// Called after client finishes uploading to B2
+app.post("/api/rooms/:roomId/video-ready", (req, res) => {
+const room = getRoom(req.params.roomId.toUpperCase());
+if (!room) return res.status(404).json({ error: "Room not found" });
+const { videoUrl, videoName } = req.body;
+room.videoUrl = videoUrl;
+room.videoName = videoName;
 room.playback = { isPlaying: false, currentTime: 0, lastUpdated: Date.now() };
-io.to(room.id).emit("video:ready", { videoName: room.videoName, videoUrl: room.videoUrl });
-res.json({ success: true, videoUrl: room.videoUrl });
-} catch (err) {
-console.error("Cloudinary upload error:", err);
-res.status(500).json({ error: "Upload failed" });
-}
+io.to(room.id).emit("video:ready", { videoName, videoUrl });
+res.json({ success: true });
 });
 
 io.on("connection", (socket) => {
