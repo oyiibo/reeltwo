@@ -636,37 +636,55 @@ function loadVideo(url, videoName) {
   vid.addEventListener("ended", () => updatePlayBtn(false));
 }
 
-async function handleFileUpload(e) {
+async function handleUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
+  document.getElementById("upload-btn").style.display = "none";
+  const progressEl = document.getElementById("upload-progress");
+  progressEl.style.display = "flex";
 
-  const formData = new FormData();
-  formData.append("video", file);
+try {
+  // Step 1 — get presigned URL from server
+  const res = await fetch(`/api/rooms/${roomId}/presign`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: file.name, contentType: file.type }),
+  });
+  const { uploadUrl, videoUrl } = await res.json();
 
-  document.getElementById("uploadBtnWrap").style.display = "none";
-  document.getElementById("uploadProgress").style.display = "block";
-
-  const xhr = new XMLHttpRequest();
-  xhr.open("POST", `/api/rooms/${roomId}/upload`);
-
+  // Step 2 — upload directly to Backblaze from browser
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+  xhr.open("PUT", uploadUrl);
+  xhr.setRequestHeader("Content-Type", file.type);
   xhr.upload.onprogress = (e) => {
     if (e.lengthComputable) {
       const pct = Math.round((e.loaded / e.total) * 100);
-      document.getElementById("uploadPct").textContent = pct;
-      document.getElementById("progressBar").style.width = pct + "%";
+      document.getElementById("upload-pct").textContent = pct;
+      document.getElementById("upload-bar").style.width = pct + "%";
     }
   };
+  xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error("Upload failed"));
+  xhr.onerror = reject;
+  xhr.send(file);
+});
 
-  xhr.onload = () => {
-    document.getElementById("uploadProgress").style.display = "none";
-    if (xhr.status === 200) {
-      toast("✅ Video uploaded!");
-    } else {
-      toast("Upload failed"); document.getElementById("uploadBtnWrap").style.display = "block";
-    }
-  };
-  xhr.onerror = () => { toast("Upload error"); document.getElementById("uploadBtnWrap").style.display = "block"; };
-  xhr.send(formData);
+  // Step 3 — tell server video is ready
+  await fetch(`/api/rooms/${roomId}/video-ready`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ videoUrl, videoName: file.name }),
+  });
+
+  progressEl.style.display = "none";
+  showToast("✅ Video uploaded!");
+
+} catch (err) {
+  console.error(err);
+  showToast("Upload failed — try again");
+  progressEl.style.display = "none";
+  document.getElementById("upload-btn").style.display = "block";
+}
 }
 
 // ── Playback controls ─────────────────────────────────────────────────────────
