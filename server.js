@@ -62,11 +62,19 @@ if (!req.file) return res.status(400).json({ error: "No file" });
 try {
 const result = await new Promise((resolve, reject) => {
 const stream = cloudinary.uploader.upload_stream(
-{ resource_type: "video", folder: "reeltwo", timeout: 120000 },
+{
+resource_type: "video",
+folder: "reeltwo",
+timeout: 120000,
+eager: [{ streaming_profile: "full_hd", format: "mp4" }],
+eager_async: false,
+},
 (error, result) => error ? reject(error) : resolve(result)
 );
 stream.end(req.file.buffer);
 });
+
+room.videoUrl = result.eager?.[0]?.secure_url || result.secure_url;
 
 room.videoUrl = result.secure_url;
 room.videoName = req.file.originalname;
