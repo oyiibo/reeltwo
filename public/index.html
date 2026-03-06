@@ -364,6 +364,7 @@ async function handleUpload(e) {
  document.getElementById("upload-progress").style.display = "flex";
 
  try {
+ console.log("roomId at upload time:", roomId);
  const res = await fetch(`/api/rooms/${roomId}/presign`, {
  method: "POST",
  headers: { "Content-Type": "application/json" },
