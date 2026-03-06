@@ -221,8 +221,6 @@ input:focus{border-color:var(--rose)}
 </div>
 
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-console.log("DOM fully loaded")
 let socket, roomId, myName, isHost = false;
 let localStream = null, peerConnection = null, pendingCallFrom = null;
 let lobbyMode = "create";
@@ -360,23 +358,11 @@ function loadVideo(url) {
 }
 
 async function handleUpload(e) {
- if (!isHost) {
-  showToast("Only the host can Upload videos");
-  return;
- }
- 
  const file = e.target.files[0];
  if (!file) return;
- const uploadBtn = document.getElementById("upload-btn");
- const uoploadProgress = document.getElementById("upload-progress");
- if (!uploadBtn || !uploadProgress) {
-  console.error("Upload UI elements missing from DOM");
- return;
- }
+ document.getElementById("upload-btn").style.display = "none";
+ document.getElementById("upload-progress").style.display = "flex";
 
- uploadBtn.style.display = "none";
- uploadProgress.style.display = "flex";
- 
  try {
  const res = await fetch(`/api/rooms/${roomId}/presign`, {
  method: "POST",
@@ -402,16 +388,10 @@ async function handleUpload(e) {
  });
 
  await fetch(`/api/rooms/${roomId}/video-ready`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json"
-},
-body: JSON.stringify({
-videoUrl: videoUrl,
-videoName: file.name
-})
-});
-
+ method: "POST",
+ headers: { "Content-Type": "application/json" },
+ body: JSON.stringify({ videoUrl, videoName: file.name }),
+ });
 
  document.getElementById("upload-progress").style.display = "none";
  showToast(" Video ready!");
@@ -568,7 +548,6 @@ function showToast(msg) {
 }
 
 function esc(t) { return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-})
 </script>
 </body>
 </html>
