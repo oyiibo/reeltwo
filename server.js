@@ -73,19 +73,28 @@ const { filename, contentType } = req.body;
 const key = `${room.id}/${uuidv4()}-${filename}`;
 
 try {
-const command = new PutObjectCommand({
+// Signed URL for uploading
+const putCommand = new PutObjectCommand({
 Bucket: BUCKET,
 Key: key,
 ContentType: contentType || "video/mp4",
 });
-const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 });
-const videoUrl = `https://${BUCKET}.${process.env.B2_ENDPOINT}/${key}`;
+const uploadUrl = await getSignedUrl(s3, putCommand, { expiresIn: 3600 });
+
+// Signed URL for playing (works with private bucket)
+const getCommand = new GetObjectCommand({
+Bucket: BUCKET,
+Key: key,
+});
+const videoUrl = await getSignedUrl(s3, getCommand, { expiresIn: 86400 }); // 24 hours
+
 res.json({ uploadUrl, videoUrl, key });
 } catch (err) {
 console.error("Presign error:", err);
 res.status(500).json({ error: "Could not generate upload URL" });
 }
 });
+
 
 // Called after client finishes uploading to B2
 app.post("/api/rooms/:roomId/video-ready", (req, res) => {
