@@ -221,6 +221,8 @@ input:focus{border-color:var(--rose)}
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+console.log("DOM fully loaded)
 let socket, roomId, myName, isHost = false;
 let localStream = null, peerConnection = null, pendingCallFrom = null;
 let lobbyMode = "create";
@@ -358,11 +360,23 @@ function loadVideo(url) {
 }
 
 async function handleUpload(e) {
+ if (!isHost) {
+  showToast("Only the host can Upload videos");
+  return;
+ }
+ 
  const file = e.target.files[0];
  if (!file) return;
- document.getElementById("upload-btn").style.display = "none";
- document.getElementById("upload-progress").style.display = "flex";
+ const uploadBtn = document.getElementById("upload-btn");
+ const uoploadProgress = document.getElementById("upload-progress");
+ if (!uploadBtn || !uploadProgress) {
+  console.error("Upload UI elements missing from DOM");
+ return;
+ }
 
+ uploadBtn.style.display = "none";
+ uploadProgress.style.display = "flex";
+ 
  try {
  const res = await fetch(`/api/rooms/${roomId}/presign`, {
  method: "POST",
