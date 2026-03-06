@@ -402,10 +402,16 @@ async function handleUpload(e) {
  });
 
  await fetch(`/api/rooms/${roomId}/video-ready`, {
- method: "POST",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ videoUrl, videoName: file.name }),
- });
+method: "POST",
+headers: {
+"Content-Type": "application/json"
+},
+body: JSON.stringify({
+videoUrl: videoUrl,
+videoName: file.name
+})
+});
+
 
  document.getElementById("upload-progress").style.display = "none";
  showToast(" Video ready!");
