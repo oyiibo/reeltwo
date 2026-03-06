@@ -358,51 +358,39 @@ function loadVideo(url) {
 }
 
 async function handleUpload(e) {
- const file = e.target.files[0];
- if (!file) return;
- document.getElementById("upload-btn").style.display = "none";
- document.getElementById("upload-progress").style.display = "flex";
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById("upload-btn").style.display = "none";
+  document.getElementById("upload-progress").style.display = "flex";
 
- try {
- console.log("roomId at upload time:", roomId);
- const res = await fetch(`/api/rooms/${roomId}/presign`, {
- method: "POST",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ filename: file.name, contentType: file.type || "video/mp4" }),
- });
- const { uploadUrl, videoUrl } = await res.json();
+  try {
+    const formData = new FormData();
+    formData.append("video", file);
 
- await new Promise((resolve, reject) => {
- const xhr = new XMLHttpRequest();
- xhr.open("PUT", uploadUrl);
- xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
- xhr.upload.onprogress = (e) => {
- if (e.lengthComputable) {
- const pct = Math.round((e.loaded / e.total) * 100);
- document.getElementById("upload-pct").textContent = pct;
- document.getElementById("progress-bar").style.width = pct + "%";
- }
- };
- xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error("B2 upload failed: " + xhr.status));
- xhr.onerror = () => reject(new Error("Network error"));
- xhr.send(file);
- });
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/rooms/${roomId}/upload`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          document.getElementById("upload-pct").textContent = pct;
+          document.getElementById("progress-bar").style.width = pct + "%";
+        }
+      };
+      xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error("Upload failed: " + xhr.status));
+      xhr.onerror = () => reject(new Error("Network error"));
+      xhr.send(formData);
+    });
 
- await fetch(`/api/rooms/${roomId}/video-ready`, {
- method: "POST",
- headers: { "Content-Type": "application/json" },
- body: JSON.stringify({ videoUrl, videoName: file.name }),
- });
+    document.getElementById("upload-progress").style.display = "none";
+    showToast("✅ Video ready!");
 
- document.getElementById("upload-progress").style.display = "none";
- showToast(" Video ready!");
-
- } catch (err) {
- console.error("Upload error:", err);
- showToast("Upload failed: " + err.message);
- document.getElementById("upload-progress").style.display = "none";
- document.getElementById("upload-btn").style.display = "block";
- }
+  } catch (err) {
+    console.error(err);
+    showToast("Upload failed: " + err.message);
+    document.getElementById("upload-progress").style.display = "none";
+    document.getElementById("upload-btn").style.display = "block";
+  }
 }
 
 function togglePlay() {
