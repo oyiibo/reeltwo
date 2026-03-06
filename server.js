@@ -72,7 +72,11 @@ timeout: 120000,
 stream.end(req.file.buffer);
 });
 
-room.videoUrl = result.secure_url;
+// Convert to browser-compatible mp4 using Cloudinary URL transformation
+const baseUrl = result.secure_url.replace("/upload/", "/upload/vc_h264,ac_aac/");
+const mp4Url = baseUrl.replace(/\.[^/.]+$/, ".mp4");
+room.videoUrl = mp4Url;
+
 
 room.videoUrl = result.secure_url;
 room.videoName = req.file.originalname;
