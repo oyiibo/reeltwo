@@ -62,26 +62,33 @@ app.get("/api/rooms/:roomId", (req, res) => {
   res.json({ roomId: room.id, hasVideo: !!room.videoUrl, videoName: room.videoName, videoUrl: room.videoUrl });
 });
 
-app.post("/api/rooms/:roomId/presign", async (req, res) => {
+app.post("/api/rooms/:roomId/upload", upload.single("video"), async (req, res) => {
   const room = getRoom(req.params.roomId.toUpperCase());
   if (!room) return res.status(404).json({ error: "Room not found" });
-  const { filename, contentType } = req.body;
-  const key = `${room.id}/${uuidv4()}-${filename}`;
+  if (!req.file) return res.status(400).json({ error: "No file" });
+
   try {
-    const uploadUrl = await getSignedUrl(s3, new PutObjectCommand({
-      Bucket: BUCKET, Key: key, ContentType: contentType || "video/mp4",
-    }), { expiresIn: 3600 });
+    const key = `${room.id}/${uuidv4()}-${req.file.originalname}`;
+    await s3.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype || "video/mp4",
+    }));
     const videoUrl = await getSignedUrl(s3, new GetObjectCommand({
       Bucket: BUCKET, Key: key,
     }), { expiresIn: 86400 });
-    console.log("Presign success, key:", key);
-    res.json({ uploadUrl, videoUrl, key });
+    room.videoUrl = videoUrl;
+    room.videoName = req.file.originalname;
+    room.playback = { isPlaying: false, currentTime: 0, lastUpdated: Date.now() };
+    io.to(room.id).emit("video:ready", { videoName: req.file.originalname, videoUrl });
+    console.log("Upload success:", key);
+    res.json({ success: true, videoUrl });
   } catch (err) {
-    console.error("Presign error:", err.message);
+    console.error("Upload error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
-
 app.post("/api/rooms/:roomId/video-ready", (req, res) => {
   const room = getRoom(req.params.roomId.toUpperCase());
   if (!room) return res.status(404).json({ error: "Room not found" });
