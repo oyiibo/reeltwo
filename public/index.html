@@ -318,7 +318,7 @@
           <p id="uploadDesc">Upload a video file to start watching together.</p>
           <div class="upload-btn-wrap" id="uploadBtnWrap">
             <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose Video File</button>
-            <input type="file" id="fileInput" accept="video/*" style="display:none" onchange="handleFileUpload(event)"/>
+            <input type="file" id="fileInput" accept="video/*" style="display:none" onchange="handleUpload(event)"/>
           </div>
           <div class="upload-progress" id="uploadProgress" style="display:none">
             <p style="font-size:0.8rem;color:var(--muted)">Uploading... <span id="uploadPct">0</span>%</p>
