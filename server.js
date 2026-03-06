@@ -16,6 +16,9 @@ const s3 = new S3Client({
 });
 
 const BUCKET = process.env.B2_BUCKET;
+console.log("BUCKET:", BUCKET);
+console.log("ENDPOINT:", process.env.B2_ENDPOINT);
+console.log("KEY_ID:", process.env.B2_KEY_ID);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
