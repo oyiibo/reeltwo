@@ -505,8 +505,8 @@ function connectSocket() {
     document.getElementById("hostBadge").style.display = isHost ? "inline-flex" : "none";
     document.getElementById("syncBadge").style.display = !isHost ? "inline-flex" : "none";
 
-    if (data.hasVideo) {
-      loadVideo(data.videoName);
+    if (data.hasVideo && data.videoUrl) {
+      loadVideo(data.videoUrl, data.videoName);
     } else if (!isHost) {
       document.getElementById("uploadDesc").textContent = "Waiting for the host to load a video...";
       document.getElementById("uploadBtnWrap").style.display = "none";
@@ -546,9 +546,8 @@ function connectSocket() {
     systemMsg(`${name} left`);
   });
 
-  socket.on("video:ready", ({ videoName }) => {
-    videoReady = true;
-    loadVideo(videoName);
+  socket.on("video:ready", ({ videoName, videoUrl }) => {
+    loadVideo(videoUrl, videoName);
     systemMsg("Video loaded — ready to watch!");
   });
 
@@ -619,9 +618,9 @@ function connectSocket() {
 }
 
 // ── Video ──────────────────────────────────────────────────────────────────────
-function loadVideo(videoName) {
+function loadVideo(url, videoName) {
   const vid = document.getElementById("videoEl");
-  vid.src = `/api/rooms/${roomId}/video`;
+  vid.src = url;
   vid.style.display = "block";
   document.getElementById("uploadPrompt").style.display = "none";
   document.getElementById("playBtn").disabled = false;
