@@ -66,20 +66,36 @@ res.json({ roomId: room.id, hasVideo: !!room.videoUrl, videoName: room.videoName
 
 // Generate a presigned upload URL — client uploads directly to B2
 app.post("/api/rooms/:roomId/presign", async (req, res) => {
-const room = getRoom(req.params.roomId.toUpperCase());
-if (!room) return res.status(404).json({ error: "Room not found" });
+ const room = getRoom(req.params.roomId.toUpperCase());
+ if (!room) return res.status(404).json({ error: "Room not found" });
 
-const { filename, contentType } = req.body;
-const key = `${room.id}/${uuidv4()}-${filename}`;
+ const { filename, contentType } = req.body;
+ const key = `${room.id}/${uuidv4()}-${filename}`;
 
-try {
-// Signed URL for uploading
-const putCommand = new PutObjectCommand({
-Bucket: BUCKET,
-Key: key,
-ContentType: contentType || "video/mp4",
+ try {
+ const putCommand = new PutObjectCommand({
+ Bucket: BUCKET,
+ Key: key,
+ ContentType: contentType || "video/mp4",
+ });
+ const uploadUrl = await getSignedUrl(s3, putCommand, { expiresIn: 3600 });
+
+ const getCommand = new GetObjectCommand({
+ Bucket: BUCKET,
+ Key: key,
+ });
+ const videoUrl = await getSignedUrl(s3, getCommand, { expiresIn: 86400 });
+
+ console.log("Presign upload URL:", uploadUrl);
+ console.log("Presign video URL:", videoUrl);
+
+ res.json({ uploadUrl, videoUrl, key });
+ } catch (err) {
+ console.error("Presign error:", err);
+ res.status(500).json({ error: err.message });
+ }
 });
-const uploadUrl = await getSignedUrl(s3, putCommand, { expiresIn: 3600 });
+
 
 // Signed URL for playing (works with private bucket)
 const getCommand = new GetObjectCommand({
