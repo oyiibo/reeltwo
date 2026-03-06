@@ -7,7 +7,7 @@ const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/clien
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 const s3 = new S3Client({
-  endpoint: `https://${process.env.B2_ENDPOINT}`,
+  endpoint: `https://s3.us-east-005.backblazeb2.com`,
   region: "us-east-1",
   credentials: {
     accessKeyId: process.env.B2_KEY_ID,
