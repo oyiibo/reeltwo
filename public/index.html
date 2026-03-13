@@ -203,6 +203,7 @@ input:focus{border-color:var(--rose)}
  <input type="file" id="file-input" accept="video/*" onchange="handleUpload(event)" style="position:absolute;opacity:0;width:1px;height:1px;"/>
  <input type="file" id="subtitle-input" accept=".srt,.vtt" onchange="handleSubtitleUpload(event)" style="position:absolute;opacity:0;width:1px;height:1px;"/>
  <button id="subtitle-btn" style="display:none;background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.5rem 1.2rem;border-radius:100px;cursor:pointer;font-size:.8rem;font-family:'DM Sans',sans-serif;" onclick="document.getElementById('subtitle-input').click()">+ Add Subtitles (.srt / .vtt)</button>
+ <button id="change-video-btn" onclick="changeVideo()" style="display:none;background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.4rem 1rem;border-radius:100px;cursor:pointer;font-size:.78rem;font-family:'DM Sans',sans-serif;">🎬 Change Video</button>
  <div id="upload-progress">
  <p>Uploading... <span id="upload-pct">0</span>%</p>
  <div class="progress-wrap"><div id="progress-bar"></div></div>
@@ -425,6 +426,9 @@ function loadVideo(url) {
  });
  player.addEventListener("ended", () => { document.getElementById("play-btn").textContent = " "; });
  document.getElementById("subtitle-bar").style.display = "block";
+ if (isHost) {
+  document.getElementById("change-video-btn").style.display = "block";
+}
 }
 
  function loadSubtitles(url) {
@@ -697,6 +701,19 @@ async function handleSubtitleUpload(e) {
   } catch (err) {
     showToast("Subtitle upload failed");
   }
+}
+ function changeVideo() {
+  player.style.display = "none";
+  player.src = "";
+  document.getElementById("upload-overlay").classList.remove("hidden");
+  document.getElementById("controls").classList.add("hidden");
+  document.getElementById("subtitle-bar").style.display = "none";
+  document.getElementById("change-video-btn").style.display = "none";
+  document.getElementById("upload-btn").style.display = "block";
+  document.getElementById("upload-progress").style.display = "none";
+  document.getElementById("upload-desc").textContent = "Upload a video file to start watching together.";
+  io.to(roomId)
+  socket.emit("video:change");
 }
 </script>
 </body>
