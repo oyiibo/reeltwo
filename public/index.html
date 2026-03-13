@@ -211,6 +211,7 @@ input:focus{border-color:var(--rose)}
  </div>
 
  <div id="subtitle-bar" style="display:none;padding:.4rem 1rem;background:var(--dark2);border-top:1px solid rgba(255,255,255,.06);">
+ <input type="file" id="subtitle-input" accept=".srt,.vtt" style="position:absolute;opacity:0;width:1px;height:1px;"/>
  <button id="subtitle-btn" onclick="document.getElementById('subtitle-input').click()" style="background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.4rem 1rem;border-radius:100px;cursor:pointer;font-size:.78rem;font-family:'DM Sans',sans-serif;">💬 Add Subtitles (.srt / .vtt)</button>
  </div>
 
@@ -285,6 +286,7 @@ let lobbyMode = "create";
 const player = document.getElementById("player");
 
 window.addEventListener("DOMContentLoaded", () => {
+ document.getElementById("subtitle-input").addEventListener("change", handleSubtitleUpload);
  const p = new URLSearchParams(window.location.search).get("room");
  if (p) { document.getElementById("code-input").value = p.toUpperCase(); if (lobbyMode !== "join") toggleMode(); }
 });
@@ -451,7 +453,7 @@ async function handleUpload(e) {
         }
   async function handleSubtitleUpload(e) {
     const file = e.target.files[0];
-  if (!file) return;
+      if (!file) return;
   showToast("Uploading subtitles...");
   try {
     const formData = new FormData();
