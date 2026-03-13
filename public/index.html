@@ -150,12 +150,13 @@ input:focus{border-color:var(--rose)}
   #vol-slider { width: 50px; }
   
   #call-area {
-    max-height: 120px;
+    max-height: 100px;
+    padding: .4rem;
   }
   
   .call-video-wrap video {
-    aspect-ratio: 4/3;
-    max-height: 100px;
+    max-height: 90px;
+    border-radius: 6px;
   }
 }
  
@@ -190,8 +191,8 @@ input:focus{border-color:var(--rose)}
  <div class="room-badge" onclick="copyCode()"> Room: <span id="room-code-display"></span></div>
  <div class="members-strip" id="members-strip"></div>
  <span id="host-label" style="display:none"> Host</span>
- <button class="call-btn" id="call-start-btn" onclick="startCall()"> Call</button>
- <button class="call-btn" id="call-end-btn" onclick="endCall()">✕ End Call</button>
+ <button class="call-btn" id="call-start-btn" onclick="startCall()" style="padding:.3rem .7rem;font-size:.75rem;">📹</button>
+ <button class="call-btn" id="call-end-btn" onclick="endCall()" style="display:none;padding:.3rem .7rem;font-size:.75rem;">📵</button>
  </div>
 
  <div id="video-wrap">
@@ -331,6 +332,12 @@ function connectSocket() {
 
  socket.on("room:joined", (data) => {
  isHost = data.isHost;
+ if (!isHost) {
+ document.getElementById("play-btn").style.display = "none";
+ document.getElementById("seek-wrap").style.pointerEvents = "none";
+ document.getElementById("seek-wrap").style.opacity = "0.5";
+ document.getElementById("call-start-btn").style.display = "none";
+}
  document.getElementById("host-label").style.display = isHost ? "inline" : "none";
  updateMembers(data.players);
  data.chat.forEach(m => addMessage(m));
