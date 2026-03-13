@@ -33,7 +33,7 @@ function createRoom() {
   const id = uuidv4().slice(0, 8).toUpperCase();
   rooms.set(id, {
     id, hostId: null,
-    videoUrl: null, videoName: null,
+    videoUrl: null, videoName: null, subtitleUrl: null,
     players: {},
     playback: { isPlaying: false, currentTime: 0, lastUpdated: Date.now() },
     chat: [],
@@ -62,6 +62,43 @@ app.get("/api/rooms/:roomId", (req, res) => {
   res.json({ roomId: room.id, hasVideo: !!room.videoUrl, videoName: room.videoName, videoUrl: room.videoUrl });
 });
 
+app.post("/api/rooms/:roomId/subtitles", upload.single("subtitle"), async (req, res) => {
+  const room = getRoom(req.params.roomId.toUpperCase());
+  if (!room) return res.status(404).json({ error: "Room not found" });
+  if (!req.file) return res.status(400).json({ error: "No file" });
+
+  try {
+    // Convert .srt to .vtt if needed
+    let vttContent;
+    const content = req.file.buffer.toString("utf8");
+    if (req.file.originalname.endsWith(".srt")) {
+      vttContent = "WEBVTT\n\n" + content
+        .replace(/\r\n/g, "\n")
+        .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2");
+    } else {
+      vttContent = content;
+    }
+
+    const key = `${room.id}/${uuidv4()}-subtitles.vtt`;
+    await s3.send(new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: Buffer.from(vttContent, "utf8"),
+      ContentType: "text/vtt",
+    }));
+
+    const subtitleUrl = await getSignedUrl(s3, new GetObjectCommand({
+      Bucket: BUCKET, Key: key,
+    }), { expiresIn: 86400 });
+
+    room.subtitleUrl = subtitleUrl;
+    io.to(room.id).emit("subtitle:ready", { subtitleUrl });
+    res.json({ success: true, subtitleUrl });
+  } catch (err) {
+    console.error("Subtitle error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 app.post("/api/rooms/:roomId/upload", upload.single("video"), async (req, res) => {
   const room = getRoom(req.params.roomId.toUpperCase());
   if (!room) return res.status(404).json({ error: "Room not found" });
@@ -113,7 +150,7 @@ io.on("connection", (socket) => {
     room.players[socket.id] = { name: socket.data.name, isHost };
     socket.emit("room:joined", {
       roomId: id, isHost, name: socket.data.name,
-      hasVideo: !!room.videoUrl, videoName: room.videoName, videoUrl: room.videoUrl,
+      hasVideo: !!room.videoUrl, videoName: room.videoName, videoUrl: room.videoUrl, subtitleUrl: room.subtitleUrl,
       playback: { isPlaying: room.playback.isPlaying, currentTime: getCurrentTime(room) },
       players: Object.values(room.players),
       chat: room.chat.slice(-50),
