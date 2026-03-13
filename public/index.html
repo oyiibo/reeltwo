@@ -411,7 +411,7 @@ function loadVideo(url) {
  document.getElementById("time-display").textContent = `${fmt(player.currentTime)} / ${fmt(player.duration)}`;
  });
  player.addEventListener("ended", () => { document.getElementById("play-btn").textContent = " "; });
- if (isHost) document.getElementById("subtitle-btn").style.display = "block";
+ document.getElementById("subtitle-btn").style.display = "block";
 }
 
  function loadSubtitles(url) {
