@@ -138,6 +138,15 @@ app.post("/api/rooms/:roomId/video-ready", (req, res) => {
 });
 
 io.on("connection", (socket) => {
+  socket.on("video:change", () => {
+  const room = getRoom(socket.data.roomId);
+  if (!room || room.hostId !== socket.id) return;
+  room.videoUrl = null;
+  room.videoName = null;
+  room.subtitleUrl = null;
+  room.playback = { isPlaying: false, currentTime: 0, lastUpdated: Date.now() };
+  socket.to(room.id).emit("video:change");
+});
   socket.on("room:join", ({ roomId, name }) => {
     const room = getRoom(roomId?.toUpperCase());
     if (!room) return socket.emit("error", { message: "Room not found" });
