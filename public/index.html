@@ -199,7 +199,7 @@ input:focus{border-color:var(--rose)}
  <h3> No video loaded</h3>
  <p id="upload-desc">Upload a video file to start watching together.</p>
  <button id="upload-btn" onclick="document.getElementById('file-input').click()">Choose Video File</button>
- <input type="file" id="file-input" accept="video/*" onchange="handleUpload(event)"/>
+ <input type="file" id="subtitle-input" accept=".srt,.vtt" onchange="handleSubtitleUpload(event)" style="position:absolute;opacity:0;width:1px;height:1px;"/>
  <button id="subtitle-btn" style="display:none;background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.5rem 1.2rem;border-radius:100px;cursor:pointer;font-size:.8rem;font-family:'DM Sans',sans-serif;" onclick="document.getElementById('subtitle-input').click()">+ Add Subtitles (.srt / .vtt)</button>
  <div id="upload-progress">
  <p>Uploading... <span id="upload-pct">0</span>%</p>
