@@ -200,6 +200,8 @@ input:focus{border-color:var(--rose)}
  <p id="upload-desc">Upload a video file to start watching together.</p>
  <button id="upload-btn" onclick="document.getElementById('file-input').click()">Choose Video File</button>
  <input type="file" id="file-input" accept="video/*" onchange="handleUpload(event)"/>
+ <input type="file" id="subtitle-input" accept=".srt,.vtt" onchange="handleSubtitleUpload(event)" style="display:none"/>
+ <button id="subtitle-btn" style="display:none;background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.5rem 1.2rem;border-radius:100px;cursor:pointer;font-size:.8rem;font-family:'DM Sans',sans-serif;" onclick="document.getElementById('subtitle-input').click()">+ Add Subtitles (.srt / .vtt)</button>
  <div id="upload-progress">
  <p>Uploading... <span id="upload-pct">0</span>%</p>
  <div class="progress-wrap"><div id="progress-bar"></div></div>
@@ -328,8 +330,9 @@ function connectSocket() {
  data.chat.forEach(m => addMessage(m));
  addSystemMsg(`You joined as ${isHost ? "host " : "guest"}`);
  if (data.hasVideo && data.videoUrl) {
- loadVideo(data.videoUrl);
- if (!isHost) setTimeout(() => socket.emit("playback:sync_request"), 1000);
+  loadVideo(data.videoUrl);
+  if (data.subtitleUrl) loadSubtitles(data.subtitleUrl);
+  if (!isHost) setTimeout(() => socket.emit("playback:sync_request"), 1000);
  } else if (!isHost) {
  document.getElementById("upload-desc").textContent = "Waiting for the host to load a video...";
  document.getElementById("upload-btn").style.display = "none";
@@ -373,6 +376,7 @@ function connectSocket() {
  else { player.pause(); document.getElementById("play-btn").textContent = " "; }
  });
 
+ socket.on("subtitle:ready", ({ subtitleUrl }) => { loadSubtitles(subtitleUrl); addSystemMsg("💬 Subtitles loaded!"); });
  socket.on("chat:message", addMessage);
 
  socket.on("reaction:burst", ({ emoji, sender }) => {
@@ -407,8 +411,21 @@ function loadVideo(url) {
  document.getElementById("time-display").textContent = `${fmt(player.currentTime)} / ${fmt(player.duration)}`;
  });
  player.addEventListener("ended", () => { document.getElementById("play-btn").textContent = " "; });
+ if (isHost) document.getElementById("subtitle-btn").style.display = "block";
 }
 
+ function loadSubtitles(url) {
+  const existing = player.querySelector("track");
+  if (existing) existing.remove();
+  const track = document.createElement("track");
+  track.kind = "subtitles";
+  track.label = "Subtitles";
+  track.srclang = "en";
+  track.src = url;
+  track.default = true;
+  player.appendChild(track);
+  player.textTracks[0].mode = "showing";
+}
 async function handleUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -428,6 +445,23 @@ async function handleUpload(e) {
           document.getElementById("upload-pct").textContent = pct;
           document.getElementById("progress-bar").style.width = pct + "%";
         }
+  async function handleSubtitleUpload(e) {
+    const file = e.target.files[0];
+  if (!file) return;
+  showToast("Uploading subtitles...");
+  try {
+    const formData = new FormData();
+    formData.append("subtitle", file);
+    const res = await fetch(`/api/rooms/${roomId}/subtitles`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Failed");
+    showToast("✅ Subtitles added!");
+  } catch (err) {
+    showToast("Subtitle upload failed");
+  }
+}
       };
       xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error("Upload failed: " + xhr.status));
       xhr.onerror = () => reject(new Error("Network error"));
