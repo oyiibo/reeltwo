@@ -212,10 +212,11 @@ input:focus{border-color:var(--rose)}
  <video id="player" style="display:none" crossorigin="anonymous"></video>
  </div>
 
- <div id="subtitle-bar" style="display:none;padding:.4rem 1rem;background:var(--dark2);border-top:1px solid rgba(255,255,255,.06);">
- <input type="file" id="subtitle-input" accept=".srt,.vtt" style="position:absolute;opacity:0;width:1px;height:1px;"/>
- <button id="subtitle-btn" onclick="document.getElementById('subtitle-input').click()" style="background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.4rem 1rem;border-radius:100px;cursor:pointer;font-size:.78rem;font-family:'DM Sans',sans-serif;">💬 Add Subtitles (.srt / .vtt)</button>
- </div>
+ <div id="subtitle-bar" style="display:none;padding:.4rem 1rem;background:var(--dark2);border-top:1px solid rgba(255,255,255,.06);display:none;gap:.5rem;flex-wrap:wrap;">
+  <input type="file" id="subtitle-input" accept=".srt,.vtt" style="position:absolute;opacity:0;width:1px;height:1px;"/>
+  <button id="subtitle-btn" onclick="document.getElementById('subtitle-input').click()" style="background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.4rem 1rem;border-radius:100px;cursor:pointer;font-size:.78rem;font-family:'DM Sans',sans-serif;">💬 Add Subtitles</button>
+  <button id="change-video-btn" onclick="changeVideo()" style="background:transparent;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.2);padding:.4rem 1rem;border-radius:100px;cursor:pointer;font-size:.78rem;font-family:'DM Sans',sans-serif;">🎬 Change Video</button>
+</div>
 
  <div id="controls" class="hidden">
  <button class="ctrl-btn" id="play-btn" onclick="togglePlay()"> </button>
@@ -434,10 +435,7 @@ function loadVideo(url) {
  document.getElementById("time-display").textContent = `${fmt(player.currentTime)} / ${fmt(player.duration)}`;
  });
  player.addEventListener("ended", () => { document.getElementById("play-btn").textContent = " "; });
- document.getElementById("subtitle-bar").style.display = "block";
- if (isHost) {
-  document.getElementById("change-video-btn").style.display = "block";
-}
+ document.getElementById("subtitle-bar").style.display = "flex";
 }
 
  function loadSubtitles(url) {
