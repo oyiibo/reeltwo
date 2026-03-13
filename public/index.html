@@ -330,6 +330,15 @@ function enterApp(rId) {
 function connectSocket() {
  socket = io();
  socket.on("connect", () => socket.emit("room:join", { roomId, name: myName }));
+ socket.on("video:change", () => {
+  player.style.display = "none";
+  player.src = "";
+  document.getElementById("upload-overlay").classList.remove("hidden");
+  document.getElementById("controls").classList.add("hidden");
+  document.getElementById("subtitle-bar").style.display = "none";
+  document.getElementById("change-video-btn").style.display = "none";
+  addSystemMsg("🎬 Host is loading a new video...");
+});
 
  socket.on("room:joined", (data) => {
  isHost = data.isHost;
