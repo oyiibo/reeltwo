@@ -629,6 +629,68 @@ function showToast(msg) {
 }
 
 function esc(t) { return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+ function loadSubtitles(url) {
+  const existing = player.querySelector("track");
+  if (existing) existing.remove();
+  const track = document.createElement("track");
+  track.kind = "subtitles";
+  track.label = "Subtitles";
+  track.srclang = "en";
+  track.src = url;
+  track.default = true;
+  player.appendChild(track);
+  player.textTracks[0].mode = "showing";
+}
+
+async function handleUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById("upload-btn").style.display = "none";
+  document.getElementById("upload-progress").style.display = "flex";
+  try {
+    const formData = new FormData();
+    formData.append("video", file);
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `/api/rooms/${roomId}/upload`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          document.getElementById("upload-pct").textContent = pct;
+          document.getElementById("progress-bar").style.width = pct + "%";
+        }
+      };
+      xhr.onload = () => xhr.status === 200 ? resolve() : reject(new Error("Upload failed: " + xhr.status));
+      xhr.onerror = () => reject(new Error("Network error"));
+      xhr.send(formData);
+    });
+    document.getElementById("upload-progress").style.display = "none";
+    showToast("✅ Video ready!");
+  } catch (err) {
+    console.error(err);
+    showToast("Upload failed: " + err.message);
+    document.getElementById("upload-progress").style.display = "none";
+    document.getElementById("upload-btn").style.display = "block";
+  }
+}
+
+async function handleSubtitleUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  showToast("Uploading subtitles...");
+  try {
+    const formData = new FormData();
+    formData.append("subtitle", file);
+    const res = await fetch(`/api/rooms/${roomId}/subtitles`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("Failed");
+    showToast("✅ Subtitles added!");
+  } catch (err) {
+    showToast("Subtitle upload failed");
+  }
+}
 </script>
 </body>
 </html>
